@@ -96,6 +96,7 @@ rest_pat_in_fully_bound_structs = "warn"
 string_lit_chars_any = "warn"
 string_to_string = "warn"
 use_self = "warn"
+string_slice = "warn"
 
 [features]
 #! The crate provides a set of optional features that can be enabled in your `cargo.toml` file.

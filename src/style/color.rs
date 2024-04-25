@@ -321,9 +321,9 @@ impl FromStr for Color {
                             return Err(ParseColorError);
                         }
                         (
-                            u8::from_str_radix(&s[1..3], 16),
-                            u8::from_str_radix(&s[3..5], 16),
-                            u8::from_str_radix(&s[5..7], 16),
+                            u8::from_str_radix(&s.chars().skip(1).take(2).collect::<String>(), 16),
+                            u8::from_str_radix(&s.chars().skip(3).take(2).collect::<String>(), 16),
+                            u8::from_str_radix(&s.chars().skip(5).take(2).collect::<String>(), 16),
                         )
                     } {
                         Self::Rgb(r, g, b)
