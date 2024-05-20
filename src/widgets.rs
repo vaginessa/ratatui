@@ -226,88 +226,62 @@ pub trait StatefulWidget {
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State);
 }
 
-/// A `WidgetRef` is a trait that allows rendering a widget by reference.
+pub struct Context<'a> {
+    pub buffer: &'a mut Buffer,
+}
+
+impl<'a> Context<'a> {
+    #[must_use]
+    pub fn from_buffer(buffer: &'a mut Buffer) -> Self {
+        Self { buffer }
+    }
+}
+
+/// A `Render` is a trait that allows rendering a widget by reference.
 ///
-/// This trait is useful when you want to store a reference to a widget and render it later. It also
-/// allows you to render boxed widgets.
+/// A blanket implementation of `Widget` for `&W` where `W` implements `Render` is provided.
 ///
-/// Boxed widgets allow you to store widgets with a type that is not known at compile time. This is
-/// useful when you want to store a collection of widgets with different types. You can then iterate
-/// over the collection and render each widget.
-///
-/// This trait was introduced in Ratatui 0.26.0 and is implemented for all the internal widgets.
-/// Implementors should prefer to implement this over the `Widget` trait and add an implementation
-/// of `Widget` that calls `WidgetRef::render_ref` where backwards compatibility is required.
-///
-/// A blanket implementation of `Widget` for `&W` where `W` implements `WidgetRef` is provided.
-///
-/// A blanket implementation of `WidgetRef` for `Option<W>` where `W` implements `WidgetRef` is
+/// A blanket implementation of `Render` for `Option<W>` where `W` implements `Render` is
 /// provided. This is a convenience approach to make it easier to attach child widgets to parent
 /// widgets. It allows you to render an optional widget by reference.
+pub trait Render {
+    fn render(&self, area: Rect, ctx: &mut Context) {}
+}
+
+/// A `RenderWithState` is a trait that allows rendering a stateful widget by reference.
 ///
-/// # Examples
+/// This is the stateful equivalent of `WidgetRef`. It is useful when you want to store a reference
+/// to a stateful widget and render it later. It also allows you to render boxed stateful widgets.
 ///
-/// ```rust
-/// # #[cfg(feature = "unstable-widget-ref")] {
-/// use ratatui::{prelude::*, widgets::*};
+/// This trait was introduced in Ratatui 0.26.0 and is implemented for all the internal stateful
+/// widgets. Implementors should prefer to implement this over the `StatefulWidget` trait and add an
+/// implementation of `StatefulWidget` that calls `RenderWithState::render_ref` where backwards
+/// compatibility is required.
 ///
-/// struct Greeting;
+/// A blanket implementation of `StatefulWidget` for `&W` where `W` implements `RenderWithState`
+/// is provided.
 ///
-/// struct Farewell;
-///
-/// impl WidgetRef for Greeting {
-///     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-///         Line::raw("Hello").render(area, buf);
-///     }
-/// }
-///
-/// /// Only needed for backwards compatibility
-/// impl Widget for Greeting {
-///     fn render(self, area: Rect, buf: &mut Buffer) {
-///         self.render_ref(area, buf);
-///     }
-/// }
-///
-/// impl WidgetRef for Farewell {
-///     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-///         Line::raw("Goodbye").right_aligned().render(area, buf);
-///     }
-/// }
-///
-/// /// Only needed for backwards compatibility
-/// impl Widget for Farewell {
-///     fn render(self, area: Rect, buf: &mut Buffer) {
-///         self.render_ref(area, buf);
-///     }
-/// }
-///
-/// # fn render(area: Rect, buf: &mut Buffer) {
-/// let greeting = Greeting;
-/// let farewell = Farewell;
-///
-/// // these calls do not consume the widgets, so they can be used again later
-/// greeting.render_ref(area, buf);
-/// farewell.render_ref(area, buf);
-///
-/// // a collection of widgets with different types
-/// let widgets: Vec<Box<dyn WidgetRef>> = vec![Box::new(greeting), Box::new(farewell)];
-/// for widget in widgets {
-///     widget.render_ref(area, buf);
-/// }
-/// # }
-/// # }
-/// ```
-#[stability::unstable(feature = "widget-ref")]
-pub trait WidgetRef {
+/// See the documentation for [`WidgetRef`] for more information on boxed widgets.
+/// See the documentation for [`StatefulWidget`] for more information on stateful widgets.
+pub trait RenderWithState {
+    /// State associated with the stateful widget.
+    ///
+    /// If you don't need this then you probably want to implement [`WidgetRef`] instead.
+    type State;
     /// Draws the current state of the widget in the given buffer. That is the only method required
-    /// to implement a custom widget.
-    fn render_ref(&self, area: Rect, buf: &mut Buffer);
+    /// to implement a custom stateful widget.
+    fn render(&self, area: Rect, ctx: &mut Context, state: &mut Self::State) {}
+}
+
+pub trait RenderMut {
+    fn render_mut(&mut self, area: Rect, ctx: &mut Context) {}
 }
 
 /// This allows you to render a widget by reference.
-impl<W: WidgetRef> Widget for &W {
+impl<R: Render> Widget for &R {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        self.render_ref(area, buf);
+        let mut ctx = Context::from_buffer(buf);
+        Render::render(self, area, &mut ctx);
     }
 }
 
@@ -319,110 +293,13 @@ impl<W: WidgetRef> Widget for &W {
 /// The internal widgets use this pattern to render the optional `Block` widgets that are included
 /// on most widgets.
 /// Blanket implementation of `WidgetExt` for `Option<W>` where `W` implements `WidgetRef`.
-///
-/// # Examples
-///
-/// ```rust
-/// # #[cfg(feature = "unstable-widget-ref")] {
-/// use ratatui::{prelude::*, widgets::*};
-///
-/// struct Parent {
-///     child: Option<Child>,
-/// }
-///
-/// struct Child;
-///
-/// impl WidgetRef for Child {
-///     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-///         Line::raw("Hello from child").render(area, buf);
-///     }
-/// }
-///
-/// impl WidgetRef for Parent {
-///     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-///         self.child.render_ref(area, buf);
-///     }
-/// }
-/// # }
-/// ```
-impl<W: WidgetRef> WidgetRef for Option<W> {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
+impl<R: Render> Render for Option<R> {
+    fn render(&self, area: Rect, ctx: &mut Context) {
         if let Some(widget) = self {
-            widget.render_ref(area, buf);
+            widget.render(area, ctx);
         }
     }
 }
-
-/// A `StatefulWidgetRef` is a trait that allows rendering a stateful widget by reference.
-///
-/// This is the stateful equivalent of `WidgetRef`. It is useful when you want to store a reference
-/// to a stateful widget and render it later. It also allows you to render boxed stateful widgets.
-///
-/// This trait was introduced in Ratatui 0.26.0 and is implemented for all the internal stateful
-/// widgets. Implementors should prefer to implement this over the `StatefulWidget` trait and add an
-/// implementation of `StatefulWidget` that calls `StatefulWidgetRef::render_ref` where backwards
-/// compatibility is required.
-///
-/// A blanket implementation of `StatefulWidget` for `&W` where `W` implements `StatefulWidgetRef`
-/// is provided.
-///
-/// See the documentation for [`WidgetRef`] for more information on boxed widgets.
-/// See the documentation for [`StatefulWidget`] for more information on stateful widgets.
-///
-/// # Examples
-///
-/// ```rust
-/// # #[cfg(feature = "unstable-widget-ref")] {
-/// use ratatui::{prelude::*, widgets::*};
-///
-/// struct PersonalGreeting;
-///
-/// impl StatefulWidgetRef for PersonalGreeting {
-///     type State = String;
-///     fn render_ref(&self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-///         Line::raw(format!("Hello {}", state)).render(area, buf);
-///     }
-/// }
-///
-/// impl StatefulWidget for PersonalGreeting {
-///     type State = String;
-///     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-///         (&self).render_ref(area, buf, state);
-///     }
-/// }
-///
-/// fn render(area: Rect, buf: &mut Buffer) {
-///     let widget = PersonalGreeting;
-///     let mut state = "world".to_string();
-///     widget.render(area, buf, &mut state);
-/// }
-/// # }
-/// ```
-#[stability::unstable(feature = "widget-ref")]
-pub trait StatefulWidgetRef {
-    /// State associated with the stateful widget.
-    ///
-    /// If you don't need this then you probably want to implement [`WidgetRef`] instead.
-    type State;
-    /// Draws the current state of the widget in the given buffer. That is the only method required
-    /// to implement a custom stateful widget.
-    fn render_ref(&self, area: Rect, buf: &mut Buffer, state: &mut Self::State);
-}
-
-// Note: while StatefulWidgetRef is marked as unstable, the blanket implementation of StatefulWidget
-// cannot be implemented as W::State is effectively pub(crate) and not accessible from outside the
-// crate. Once stabilized, this blanket implementation can be added and the specific implementations
-// on Table and List can be removed.
-//
-// /// Blanket implementation of `StatefulWidget` for `&W` where `W` implements `StatefulWidgetRef`.
-// ///
-// /// This allows you to render a stateful widget by reference.
-// impl<W: StatefulWidgetRef> StatefulWidget for &W {
-//     type State = W::State;
-//     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-//         StatefulWidgetRef::render_ref(self, area, buf, state);
-//     }
-// }
 
 /// Renders a string slice as a widget.
 ///
@@ -432,7 +309,8 @@ pub trait StatefulWidgetRef {
 /// drawing the text to the screen.
 impl Widget for &str {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        self.render_ref(area, buf);
+        let mut ctx = Context::from_buffer(buf);
+        Render::render(&self, area, &mut ctx);
     }
 }
 
@@ -442,9 +320,10 @@ impl Widget for &str {
 /// `String`, can be drawn on demand without requiring ownership of the string itself. It utilizes
 /// the default text style when rendering onto the provided [`Buffer`] at the position defined by
 /// [`Rect`].
-impl WidgetRef for &str {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        buf.set_string(area.x, area.y, self, crate::style::Style::default());
+impl Render for &str {
+    fn render(&self, area: Rect, ctx: &mut Context) {
+        ctx.buffer
+            .set_string(area.x, area.y, self, crate::style::Style::default());
     }
 }
 
@@ -454,7 +333,8 @@ impl WidgetRef for &str {
 /// on a [`Buffer`] within the bounds of a given [`Rect`].
 impl Widget for String {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        self.render_ref(area, buf);
+        let mut ctx = Context::from_buffer(buf);
+        Render::render(&self, area, &mut ctx);
     }
 }
 
@@ -463,9 +343,10 @@ impl Widget for String {
 /// This trait allows for a `String` to be rendered onto the [`Buffer`], similarly using the default
 /// style settings. It ensures that an owned `String` can be rendered efficiently by reference,
 /// without the need to give up ownership of the underlying text.
-impl WidgetRef for String {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        buf.set_string(area.x, area.y, self, crate::style::Style::default());
+impl Render for String {
+    fn render(&self, area: Rect, ctx: &mut Context) {
+        ctx.buffer
+            .set_string(area.x, area.y, self, crate::style::Style::default());
     }
 }
 
@@ -506,48 +387,16 @@ mod tests {
         struct Greeting;
         struct Farewell;
 
-        impl WidgetRef for Greeting {
-            fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-                Line::from("Hello").render(area, buf);
+        impl Render for Greeting {
+            fn render(&self, area: Rect, ctx: &mut Context) {
+                Line::from("Hello").render(area, ctx.buf);
             }
         }
 
-        impl WidgetRef for Farewell {
-            fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-                Line::from("Goodbye").right_aligned().render(area, buf);
+        impl Render for Farewell {
+            fn render(&self, area: Rect, ctx: &mut Context) {
+                Line::from("Goodbye").right_aligned().render(area, ctx.buf);
             }
-        }
-
-        #[rstest]
-        fn render_ref(mut buf: Buffer) {
-            let widget = Greeting;
-            widget.render_ref(buf.area, &mut buf);
-            assert_eq!(buf, Buffer::with_lines(["Hello               "]));
-        }
-
-        /// Ensure that the blanket implementation of `Widget` for `&W` where `W` implements
-        /// `WidgetRef` works as expected.
-        #[rstest]
-        fn blanket_render(mut buf: Buffer) {
-            let widget = &Greeting;
-            widget.render(buf.area, &mut buf);
-            assert_eq!(buf, Buffer::with_lines(["Hello               "]));
-        }
-
-        #[rstest]
-        fn box_render_ref(mut buf: Buffer) {
-            let widget: Box<dyn WidgetRef> = Box::new(Greeting);
-            widget.render_ref(buf.area, &mut buf);
-            assert_eq!(buf, Buffer::with_lines(["Hello               "]));
-        }
-
-        #[rstest]
-        fn vec_box_render(mut buf: Buffer) {
-            let widgets: Vec<Box<dyn WidgetRef>> = vec![Box::new(Greeting), Box::new(Farewell)];
-            for widget in widgets {
-                widget.render_ref(buf.area, &mut buf);
-            }
-            assert_eq!(buf, Buffer::with_lines(["Hello        Goodbye"]));
         }
     }
 
