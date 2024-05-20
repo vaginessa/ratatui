@@ -5,7 +5,10 @@ use std::{borrow::Cow, fmt};
 use unicode_truncate::UnicodeTruncateStr;
 
 use super::StyledGrapheme;
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    widgets::{Context, Render},
+};
 
 /// A line of text, consisting of one or more [`Span`]s.
 ///
@@ -546,15 +549,11 @@ where
     }
 }
 
-impl Widget for Line<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        self.render_ref(area, buf);
-    }
-}
+impl Widget for Line<'_> {}
 
-impl WidgetRef for Line<'_> {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        let area = area.intersection(buf.area);
+impl Render for Line<'_> {
+    fn render(&self, area: Rect, ctx: &mut Context) {
+        let area = area.intersection(ctx.buffer.area);
         if area.is_empty() {
             return;
         }
@@ -563,7 +562,7 @@ impl WidgetRef for Line<'_> {
             return;
         }
 
-        buf.set_style(area, self.style);
+        ctx.buffer.set_style(area, self.style);
 
         let area_width = usize::from(area.width);
         let can_render_complete_line = line_width <= area_width;
@@ -575,7 +574,7 @@ impl WidgetRef for Line<'_> {
             };
             let indent_width = u16::try_from(indent_width).unwrap_or(u16::MAX);
             let area = area.indent_x(indent_width);
-            render_spans(&self.spans, area, buf, 0);
+            render_spans(&self.spans, area, ctx.buffer, 0);
         } else {
             // There is not enough space to render the whole line. As the right side is truncated by
             // the area width, only truncate the left.
@@ -584,7 +583,7 @@ impl WidgetRef for Line<'_> {
                 Some(Alignment::Right) => line_width.saturating_sub(area_width),
                 Some(Alignment::Left) | None => 0,
             };
-            render_spans(&self.spans, area, buf, skip_width);
+            render_spans(&self.spans, area, ctx.buffer, skip_width);
         };
     }
 }
@@ -596,7 +595,7 @@ fn render_spans(spans: &[Span], mut area: Rect, buf: &mut Buffer, span_skip_widt
         if area.is_empty() {
             break;
         }
-        span.render_ref(area, buf);
+        span.render(area, buf);
         let span_width = u16::try_from(span_width).unwrap_or(u16::MAX);
         area = area.indent_x(span_width);
     }

@@ -1,7 +1,11 @@
 use itertools::Itertools;
 
 use super::*;
-use crate::{layout::Flex, prelude::*, widgets::Block};
+use crate::{
+    layout::Flex,
+    prelude::*,
+    widgets::{Block, Context, Render, RenderWithState},
+};
 
 /// A widget to display data in formatted columns.
 ///
@@ -564,41 +568,23 @@ impl<'a> Table<'a> {
     }
 }
 
-impl Widget for Table<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        WidgetRef::render_ref(&self, area, buf);
-    }
-}
+impl Widget for Table<'_> {}
 
-impl WidgetRef for Table<'_> {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
+impl Render for Table<'_> {
+    fn render(&self, area: Rect, ctx: &mut Context) {
         let mut state = TableState::default();
-        StatefulWidget::render(self, area, buf, &mut state);
+        RenderWithState::render_with_state(self, area, ctx, &mut state);
     }
 }
 
-impl StatefulWidget for Table<'_> {
+impl StatefulWidget for Table<'_> {}
+
+impl RenderWithState for Table<'_> {
     type State = TableState;
 
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        StatefulWidget::render(&self, area, buf, state);
-    }
-}
-
-// Note: remove this when StatefulWidgetRef is stabilized and replace with the blanket impl
-impl StatefulWidget for &Table<'_> {
-    type State = TableState;
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        StatefulWidgetRef::render_ref(self, area, buf, state);
-    }
-}
-
-impl StatefulWidgetRef for Table<'_> {
-    type State = TableState;
-
-    fn render_ref(&self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        buf.set_style(area, self.style);
-        self.block.render_ref(area, buf);
+    fn render_with_state(&self, area: Rect, ctx: &mut Context, state: &mut Self::State) {
+        ctx.buffer.set_style(area, self.style);
+        Render::render(&self.block, area, ctx);
         let table_area = self.block.inner_if_some(area);
         if table_area.is_empty() {
             return;
@@ -608,18 +594,18 @@ impl StatefulWidgetRef for Table<'_> {
         let columns_widths = self.get_columns_widths(table_area.width, selection_width);
         let (header_area, rows_area, footer_area) = self.layout(table_area);
 
-        self.render_header(header_area, buf, &columns_widths);
+        self.render_header(header_area, ctx.buffer, &columns_widths);
 
         self.render_rows(
             rows_area,
-            buf,
+            ctx.buffer,
             state,
             selection_width,
             &self.highlight_symbol,
             &columns_widths,
         );
 
-        self.render_footer(footer_area, buf, &columns_widths);
+        self.render_footer(footer_area, ctx.buffer, &columns_widths);
     }
 }
 

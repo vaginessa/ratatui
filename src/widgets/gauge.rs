@@ -1,3 +1,4 @@
+use super::{Context, Render};
 use crate::{prelude::*, widgets::Block};
 
 /// A widget to display a progress bar.
@@ -154,18 +155,14 @@ impl<'a> Gauge<'a> {
     }
 }
 
-impl Widget for Gauge<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        self.render_ref(area, buf);
-    }
-}
+impl Widget for Gauge<'_> {}
 
-impl WidgetRef for Gauge<'_> {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        buf.set_style(area, self.style);
-        self.block.render_ref(area, buf);
+impl Render for Gauge<'_> {
+    fn render(&self, area: Rect, ctx: &mut Context) {
+        ctx.buffer.set_style(area, self.style);
+        Render::render(&self.block, area, ctx);
         let inner = self.block.inner_if_some(area);
-        self.render_gauge(inner, buf);
+        self.render_gauge(inner, ctx.buffer);
     }
 }
 
@@ -350,16 +347,12 @@ impl<'a> LineGauge<'a> {
     }
 }
 
-impl Widget for LineGauge<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        self.render_ref(area, buf);
-    }
-}
+impl Widget for LineGauge<'_> {}
 
-impl WidgetRef for LineGauge<'_> {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        buf.set_style(area, self.style);
-        self.block.render_ref(area, buf);
+impl Render for LineGauge<'_> {
+    fn render(&self, area: Rect, ctx: &mut Context) {
+        ctx.buffer.set_style(area, self.style);
+        Render::render(&self.block, area, ctx);
         let gauge_area = self.block.inner_if_some(area);
         if gauge_area.is_empty() {
             return;
@@ -368,7 +361,9 @@ impl WidgetRef for LineGauge<'_> {
         let ratio = self.ratio;
         let default_label = Line::from(format!("{:.0}%", ratio * 100.0));
         let label = self.label.as_ref().unwrap_or(&default_label);
-        let (col, row) = buf.set_line(gauge_area.left(), gauge_area.top(), label, gauge_area.width);
+        let (col, row) =
+            ctx.buffer
+                .set_line(gauge_area.left(), gauge_area.top(), label, gauge_area.width);
         let start = col + 1;
         if start >= gauge_area.right() {
             return;
@@ -377,7 +372,8 @@ impl WidgetRef for LineGauge<'_> {
         let end = start
             + (f64::from(gauge_area.right().saturating_sub(start)) * self.ratio).floor() as u16;
         for col in start..end {
-            buf.get_mut(col, row)
+            ctx.buffer
+                .get_mut(col, row)
                 .set_symbol(self.line_set.horizontal)
                 .set_style(Style {
                     fg: self.gauge_style.fg,
@@ -389,7 +385,8 @@ impl WidgetRef for LineGauge<'_> {
                 });
         }
         for col in end..gauge_area.right() {
-            buf.get_mut(col, row)
+            ctx.buffer
+                .get_mut(col, row)
                 .set_symbol(self.line_set.horizontal)
                 .set_style(Style {
                     fg: self.gauge_style.bg,

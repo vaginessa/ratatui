@@ -102,7 +102,12 @@ pub trait Widget {
     /// to implement a custom widget.
     fn render(self, area: Rect, buf: &mut Buffer)
     where
-        Self: Sized;
+        Self: Sized,
+        Self: Render,
+    {
+        let mut ctx = Context::from_buffer(buf);
+        Render::render(&self, area, &mut ctx);
+    }
 }
 
 /// A `StatefulWidget` is a widget that can take advantage of some local state to remember things
@@ -216,16 +221,20 @@ pub trait Widget {
 ///     events.next();
 /// }
 /// ```
-pub trait StatefulWidget {
-    /// State associated with the stateful widget.
-    ///
-    /// If you don't need this then you probably want to implement [`Widget`] instead.
-    type State;
+pub trait StatefulWidget: RenderWithState {
     /// Draws the current state of the widget in the given buffer. That is the only method required
     /// to implement a custom stateful widget.
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State);
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State)
+    where
+        Self: Sized,
+        Self: RenderWithState,
+    {
+        let mut ctx = Context::from_buffer(buf);
+        RenderWithState::render_with_state(&self, area, &mut ctx, state);
+    }
 }
 
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub struct Context<'a> {
     pub buffer: &'a mut Buffer,
 }
@@ -270,7 +279,7 @@ pub trait RenderWithState {
     type State;
     /// Draws the current state of the widget in the given buffer. That is the only method required
     /// to implement a custom stateful widget.
-    fn render(&self, area: Rect, ctx: &mut Context, state: &mut Self::State) {}
+    fn render_with_state(&self, area: Rect, ctx: &mut Context, state: &mut Self::State) {}
 }
 
 pub trait RenderMut {

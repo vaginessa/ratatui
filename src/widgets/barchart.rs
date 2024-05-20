@@ -6,6 +6,8 @@ mod bar_group;
 pub use bar::Bar;
 pub use bar_group::BarGroup;
 
+use super::{Context, Render};
+
 /// A chart showing values as [bars](Bar).
 ///
 /// Here is a possible `BarChart` output.
@@ -575,17 +577,13 @@ impl BarChart<'_> {
     }
 }
 
-impl Widget for BarChart<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        self.render_ref(area, buf);
-    }
-}
+impl Widget for BarChart<'_> {}
 
-impl WidgetRef for BarChart<'_> {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        buf.set_style(area, self.style);
+impl Render for BarChart<'_> {
+    fn render(&self, area: Rect, ctx: &mut Context) {
+        ctx.buffer.set_style(area, self.style);
 
-        self.block.render_ref(area, buf);
+        Render::render(&self.block, area, ctx);
         let inner = self.block.inner_if_some(area);
 
         if inner.is_empty() || self.data.is_empty() || self.bar_width == 0 {
@@ -593,8 +591,8 @@ impl WidgetRef for BarChart<'_> {
         }
 
         match self.direction {
-            Direction::Horizontal => self.render_horizontal(buf, inner),
-            Direction::Vertical => self.render_vertical(buf, inner),
+            Direction::Horizontal => self.render_horizontal(ctx.buffer, inner),
+            Direction::Vertical => self.render_vertical(ctx.buffer, inner),
         }
     }
 }

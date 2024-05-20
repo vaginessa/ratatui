@@ -4,7 +4,10 @@ use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
 use super::StyledGrapheme;
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    widgets::{Context, Render},
+};
 
 /// Represents a part of a line that is contiguous and where all characters share the same style.
 ///
@@ -355,29 +358,26 @@ impl<'a> Styled for Span<'a> {
     }
 }
 
-impl Widget for Span<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        self.render_ref(area, buf);
-    }
-}
+impl Widget for Span<'_> {}
 
-impl WidgetRef for Span<'_> {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        let area = area.intersection(buf.area);
+impl Render for Span<'_> {
+    fn render(&self, area: Rect, ctx: &mut Context) {
+        let area = area.intersection(ctx.buffer.area);
         let Rect {
             x: mut current_x,
             y,
             width,
             ..
         } = area;
-        let max_x = Ord::min(current_x.saturating_add(width), buf.area.right());
+        let max_x = Ord::min(current_x.saturating_add(width), ctx.buffer.area.right());
         for g in self.styled_graphemes(Style::default()) {
             let symbol_width = g.symbol.width();
             let next_x = current_x.saturating_add(symbol_width as u16);
             if next_x > max_x {
                 break;
             }
-            buf.get_mut(current_x, y)
+            ctx.buffer
+                .get_mut(current_x, y)
                 .set_symbol(g.symbol)
                 .set_style(g.style);
 
@@ -385,7 +385,7 @@ impl WidgetRef for Span<'_> {
             // grapheme, otherwise the hidden characters will be re-rendered if the grapheme is
             // overwritten.
             for i in (current_x + 1)..next_x {
-                buf.get_mut(i, y).reset();
+                ctx.buffer.get_mut(i, y).reset();
                 // it may seem odd that the style of the hidden cells are not set to the style of
                 // the grapheme, but this is how the existing buffer.set_span() method works.
                 // buf.get_mut(i, y).set_style(g.style);

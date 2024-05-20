@@ -1,5 +1,8 @@
 use super::Bar;
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    widgets::{Context, Render},
+};
 
 /// A group of bars to be shown by the Barchart.
 ///
@@ -59,7 +62,8 @@ impl<'a> BarGroup<'a> {
                 _ => Rect { width, ..area },
             };
             buf.set_style(area, default_label_style);
-            label.render(area, buf);
+            let mut ctx = Context::from_buffer(buf);
+            Render::render(label, area, &mut ctx);
         }
     }
 }

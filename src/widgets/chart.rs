@@ -3,6 +3,7 @@ use std::cmp::max;
 use strum::{Display, EnumString};
 use unicode_width::UnicodeWidthStr;
 
+use super::{Context, Render};
 use crate::{
     layout::Flex,
     prelude::*,
@@ -936,18 +937,14 @@ impl<'a> Chart<'a> {
     }
 }
 
-impl Widget for Chart<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        self.render_ref(area, buf);
-    }
-}
+impl Widget for Chart<'_> {}
 
-impl WidgetRef for Chart<'_> {
+impl Render for Chart<'_> {
     #[allow(clippy::too_many_lines)]
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        buf.set_style(area, self.style);
+    fn render(&self, area: Rect, ctx: &mut Context) {
+        ctx.buffer.set_style(area, self.style);
 
-        self.block.render_ref(area, buf);
+        Render::render(&self.block, area, ctx);
         let chart_area = self.block.inner_if_some(area);
         let Some(layout) = self.layout(chart_area) else {
             return;
@@ -957,14 +954,15 @@ impl WidgetRef for Chart<'_> {
         // Sample the style of the entire widget. This sample will be used to reset the style of
         // the cells that are part of the components put on top of the grah area (i.e legend and
         // axis names).
-        let original_style = buf.get(area.left(), area.top()).style();
+        let original_style = ctx.buffer.get(area.left(), area.top()).style();
 
-        self.render_x_labels(buf, &layout, chart_area, graph_area);
-        self.render_y_labels(buf, &layout, chart_area, graph_area);
+        self.render_x_labels(ctx.buffer, &layout, chart_area, graph_area);
+        self.render_y_labels(ctx.buffer, &layout, chart_area, graph_area);
 
         if let Some(y) = layout.axis_x {
             for x in graph_area.left()..graph_area.right() {
-                buf.get_mut(x, y)
+                ctx.buffer
+                    .get_mut(x, y)
                     .set_symbol(symbols::line::HORIZONTAL)
                     .set_style(self.x_axis.style);
             }
@@ -972,7 +970,8 @@ impl WidgetRef for Chart<'_> {
 
         if let Some(x) = layout.axis_y {
             for y in graph_area.top()..graph_area.bottom() {
-                buf.get_mut(x, y)
+                ctx.buffer
+                    .get_mut(x, y)
                     .set_symbol(symbols::line::VERTICAL)
                     .set_style(self.y_axis.style);
             }
@@ -980,7 +979,8 @@ impl WidgetRef for Chart<'_> {
 
         if let Some(y) = layout.axis_x {
             if let Some(x) = layout.axis_y {
-                buf.get_mut(x, y)
+                ctx.buffer
+                    .get_mut(x, y)
                     .set_symbol(symbols::line::BOTTOM_LEFT)
                     .set_style(self.x_axis.style);
             }
@@ -1009,7 +1009,7 @@ impl WidgetRef for Chart<'_> {
                         }
                     }
                 })
-                .render(graph_area, buf);
+                .render(graph_area, ctx.buffer);
         }
 
         if let Some((x, y)) = layout.title_x {
@@ -1018,7 +1018,7 @@ impl WidgetRef for Chart<'_> {
                 .right()
                 .saturating_sub(x)
                 .min(title.width() as u16);
-            buf.set_style(
+            ctx.buffer.set_style(
                 Rect {
                     x,
                     y,
@@ -1027,7 +1027,7 @@ impl WidgetRef for Chart<'_> {
                 },
                 original_style,
             );
-            buf.set_line(x, y, title, width);
+            ctx.buffer.set_line(x, y, title, width);
         }
 
         if let Some((x, y)) = layout.title_y {
@@ -1036,7 +1036,7 @@ impl WidgetRef for Chart<'_> {
                 .right()
                 .saturating_sub(x)
                 .min(title.width() as u16);
-            buf.set_style(
+            ctx.buffer.set_style(
                 Rect {
                     x,
                     y,
@@ -1045,12 +1045,12 @@ impl WidgetRef for Chart<'_> {
                 },
                 original_style,
             );
-            buf.set_line(x, y, title, width);
+            ctx.buffer.set_line(x, y, title, width);
         }
 
         if let Some(legend_area) = layout.legend_area {
-            buf.set_style(legend_area, original_style);
-            Block::bordered().render(legend_area, buf);
+            ctx.buffer.set_style(legend_area, original_style);
+            Block::bordered().render(legend_area, ctx.buffer);
 
             for (i, (dataset_name, dataset_style)) in self
                 .datasets
@@ -1066,7 +1066,7 @@ impl WidgetRef for Chart<'_> {
                         width: legend_area.width - 2,
                         height: 1,
                     },
-                    buf,
+                    ctx.buffer,
                 );
             }
         }

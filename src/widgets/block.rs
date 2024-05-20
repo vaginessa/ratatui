@@ -16,6 +16,8 @@ pub mod title;
 pub use padding::Padding;
 pub use title::{Position, Title};
 
+use super::{Context, Render};
+
 /// Base widget to be used to display a box border around all [upper level ones](crate::widgets).
 ///
 /// The borders can be configured with [`Block::borders`] and others. A block can have multiple
@@ -582,21 +584,17 @@ impl BorderType {
     }
 }
 
-impl Widget for Block<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        self.render_ref(area, buf);
-    }
-}
+impl Widget for Block<'_> {}
 
-impl WidgetRef for Block<'_> {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        let area = area.intersection(buf.area);
+impl Render for Block<'_> {
+    fn render(&self, area: Rect, ctx: &mut Context) {
+        let area = area.intersection(ctx.buffer.area);
         if area.is_empty() {
             return;
         }
-        buf.set_style(area, self.style);
-        self.render_borders(area, buf);
-        self.render_titles(area, buf);
+        ctx.buffer.set_style(area, self.style);
+        self.render_borders(area, ctx.buffer);
+        self.render_titles(area, ctx.buffer);
     }
 }
 
@@ -725,7 +723,8 @@ impl Block<'_> {
                 ..titles_area
             };
             buf.set_style(title_area, self.titles_style);
-            title.content.render_ref(title_area, buf);
+            let mut ctx = Context::from_buffer(buf);
+            Render::render(&title.content, title_area, &mut ctx);
 
             // bump the width of the titles area to the left
             titles_area.width = titles_area
@@ -766,7 +765,8 @@ impl Block<'_> {
                 ..titles_area
             };
             buf.set_style(title_area, self.titles_style);
-            title.content.render_ref(title_area, buf);
+            let mut ctx = Context::from_buffer(buf);
+            Render::render(&title.content, title_area, &mut ctx);
 
             // bump the titles area to the right and reduce its width
             titles_area.x = titles_area.x.saturating_add(title_width + 1);
@@ -789,7 +789,8 @@ impl Block<'_> {
                 ..titles_area
             };
             buf.set_style(title_area, self.titles_style);
-            title.content.render_ref(title_area, buf);
+            let mut ctx = Context::from_buffer(buf);
+            Render::render(&title.content, title_area, &mut ctx);
 
             // bump the titles area to the right and reduce its width
             titles_area.x = titles_area.x.saturating_add(title_width + 1);

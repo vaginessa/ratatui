@@ -30,6 +30,7 @@ pub use self::{
     points::Points,
     rectangle::Rectangle,
 };
+use super::Render;
 use crate::{prelude::*, text::Line as TextLine, widgets::Block};
 
 /// Something that can be drawn on a [`Canvas`].
@@ -723,27 +724,22 @@ where
     }
 }
 
-impl<F> Widget for Canvas<'_, F>
-where
-    F: Fn(&mut Context),
-{
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        self.render_ref(area, buf);
-    }
-}
+impl<F> Widget for Canvas<'_, F> where F: Fn(&mut Context) {}
 
-impl<F> WidgetRef for Canvas<'_, F>
+impl<F> Render for Canvas<'_, F>
 where
     F: Fn(&mut Context),
 {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        self.block.render_ref(area, buf);
+    fn render(&self, area: Rect, context: &mut crate::widgets::Context) {
+        Render::render(&self.block, area, context);
         let canvas_area = self.block.inner_if_some(area);
         if canvas_area.is_empty() {
             return;
         }
 
-        buf.set_style(canvas_area, Style::default().bg(self.background_color));
+        context
+            .buffer
+            .set_style(canvas_area, Style::default().bg(self.background_color));
 
         let width = canvas_area.width as usize;
 
@@ -771,7 +767,7 @@ where
                         (index % width) as u16 + canvas_area.left(),
                         (index / width) as u16 + canvas_area.top(),
                     );
-                    let cell = buf.get_mut(x, y).set_char(ch);
+                    let cell = context.buffer.get_mut(x, y).set_char(ch);
                     if colors.0 != Color::Reset {
                         cell.set_fg(colors.0);
                     }
@@ -801,7 +797,9 @@ where
         {
             let x = ((label.x - left) * resolution.0 / width) as u16 + canvas_area.left();
             let y = ((top - label.y) * resolution.1 / height) as u16 + canvas_area.top();
-            buf.set_line(x, y, &label.line, canvas_area.right() - x);
+            context
+                .buffer
+                .set_line(x, y, &label.line, canvas_area.right() - x);
         }
     }
 }

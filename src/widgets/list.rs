@@ -1,6 +1,7 @@
 use strum::{Display, EnumString};
 use unicode_width::UnicodeWidthStr;
 
+use super::{Context, Render, RenderWithState};
 use crate::{
     prelude::*,
     widgets::{Block, HighlightSpacing},
@@ -886,41 +887,23 @@ impl<'a> List<'a> {
     }
 }
 
-impl Widget for List<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        WidgetRef::render_ref(&self, area, buf);
-    }
-}
+impl Widget for List<'_> {}
 
-impl WidgetRef for List<'_> {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
+impl Render for List<'_> {
+    fn render(&self, area: Rect, ctx: &mut Context) {
         let mut state = ListState::default();
-        StatefulWidgetRef::render_ref(self, area, buf, &mut state);
+        RenderWithState::render_with_state(self, area, ctx, &mut state);
     }
 }
 
-impl StatefulWidget for List<'_> {
+impl StatefulWidget for List<'_> {}
+
+impl RenderWithState for List<'_> {
     type State = ListState;
 
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        StatefulWidgetRef::render_ref(&self, area, buf, state);
-    }
-}
-
-// Note: remove this when StatefulWidgetRef is stabilized and replace with the blanket impl
-impl StatefulWidget for &List<'_> {
-    type State = ListState;
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        StatefulWidgetRef::render_ref(self, area, buf, state);
-    }
-}
-
-impl StatefulWidgetRef for List<'_> {
-    type State = ListState;
-
-    fn render_ref(&self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        buf.set_style(area, self.style);
-        self.block.render_ref(area, buf);
+    fn render_with_state(&self, area: Rect, ctx: &mut Context, state: &mut Self::State) {
+        ctx.buffer.set_style(area, self.style);
+        Render::render(&self.block, area, ctx);
         let list_area = self.block.inner_if_some(area);
 
         if list_area.is_empty() || self.items.is_empty() {
@@ -965,7 +948,7 @@ impl StatefulWidgetRef for List<'_> {
             };
 
             let item_style = self.style.patch(item.style);
-            buf.set_style(row_area, item_style);
+            ctx.buffer.set_style(row_area, item_style);
 
             let is_selected = state.selected.map_or(false, |s| s == i);
 
@@ -979,7 +962,7 @@ impl StatefulWidgetRef for List<'_> {
             } else {
                 row_area
             };
-            item.content.clone().render(item_area, buf);
+            item.content.clone().render(item_area, ctx.buffer);
 
             for j in 0..item.content.height() {
                 // if the item is selected, we need to display the highlight symbol:
@@ -991,7 +974,7 @@ impl StatefulWidgetRef for List<'_> {
                     &blank_symbol
                 };
                 if selection_spacing {
-                    buf.set_stringn(
+                    ctx.buffer.set_stringn(
                         x,
                         y + j as u16,
                         symbol,
@@ -1002,7 +985,7 @@ impl StatefulWidgetRef for List<'_> {
             }
 
             if is_selected {
-                buf.set_style(row_area, self.highlight_style);
+                ctx.buffer.set_style(row_area, self.highlight_style);
             }
         }
     }

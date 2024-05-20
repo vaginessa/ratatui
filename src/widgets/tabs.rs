@@ -1,3 +1,4 @@
+use super::{Context, Render};
 use crate::{prelude::*, widgets::Block};
 
 const DEFAULT_HIGHLIGHT_STYLE: Style = Style::new().add_modifier(Modifier::REVERSED);
@@ -249,18 +250,14 @@ impl<'a> Styled for Tabs<'a> {
     }
 }
 
-impl Widget for Tabs<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        self.render_ref(area, buf);
-    }
-}
+impl Widget for Tabs<'_> {}
 
-impl WidgetRef for Tabs<'_> {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        buf.set_style(area, self.style);
-        self.block.render_ref(area, buf);
+impl Render for Tabs<'_> {
+    fn render(&self, area: Rect, ctx: &mut Context) {
+        ctx.buffer.set_style(area, self.style);
+        Render::render(&self.block, area, ctx);
         let inner = self.block.inner_if_some(area);
-        self.render_tabs(inner, buf);
+        self.render_tabs(inner, ctx.buffer);
     }
 }
 

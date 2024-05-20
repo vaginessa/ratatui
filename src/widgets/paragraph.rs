@@ -1,5 +1,6 @@
 use unicode_width::UnicodeWidthStr;
 
+use super::{Context, Render};
 use crate::{
     prelude::*,
     text::StyledGrapheme,
@@ -318,18 +319,14 @@ impl<'a> Paragraph<'a> {
     }
 }
 
-impl Widget for Paragraph<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        self.render_ref(area, buf);
-    }
-}
+impl Widget for Paragraph<'_> {}
 
-impl WidgetRef for Paragraph<'_> {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        buf.set_style(area, self.style);
-        self.block.render_ref(area, buf);
+impl Render for Paragraph<'_> {
+    fn render(&self, area: Rect, ctx: &mut Context) {
+        ctx.buffer.set_style(area, self.style);
+        Render::render(&self.block, area, ctx);
         let inner = self.block.inner_if_some(area);
-        self.render_paragraph(inner, buf);
+        self.render_paragraph(inner, ctx.buffer);
     }
 }
 

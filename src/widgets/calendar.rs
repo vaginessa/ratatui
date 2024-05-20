@@ -12,6 +12,7 @@ use std::collections::HashMap;
 
 use time::{Date, Duration, OffsetDateTime};
 
+use super::{Context, Render};
 use crate::{prelude::*, widgets::Block};
 
 /// Display a month calendar for the month containing `display_date`
@@ -119,17 +120,13 @@ impl<'a, DS: DateStyler> Monthly<'a, DS> {
     }
 }
 
-impl<DS: DateStyler> Widget for Monthly<'_, DS> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        self.render_ref(area, buf);
-    }
-}
+impl<DS: DateStyler> Widget for Monthly<'_, DS> {}
 
-impl<DS: DateStyler> WidgetRef for Monthly<'_, DS> {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        self.block.render_ref(area, buf);
+impl<DS: DateStyler> Render for Monthly<'_, DS> {
+    fn render(&self, area: Rect, ctx: &mut Context) {
+        Render::render(&self.block, area, ctx);
         let inner = self.block.inner_if_some(area);
-        self.render_monthly(inner, buf);
+        self.render_monthly(inner, ctx.buffer);
     }
 }
 

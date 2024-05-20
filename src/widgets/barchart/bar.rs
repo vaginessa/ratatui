@@ -1,6 +1,9 @@
 use unicode_width::UnicodeWidthStr;
 
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    widgets::{Context, Render},
+};
 
 /// A bar to be shown by the [`BarChart`](crate::widgets::BarChart) widget.
 ///
@@ -196,7 +199,8 @@ impl<'a> Bar<'a> {
         };
         buf.set_style(area, default_label_style);
         if let Some(label) = &self.label {
-            label.render(area, buf);
+            let mut ctx = Context::from_buffer(buf);
+            Render::render(label, area, &mut ctx);
         }
     }
 }

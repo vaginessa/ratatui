@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::{backend::ClearType, prelude::*};
+use crate::{backend::ClearType, prelude::*, widgets::Context};
 
 /// An interface to interact and draw [`Frame`]s on the user's terminal.
 ///
@@ -158,10 +158,12 @@ where
     /// Get a Frame object which provides a consistent view into the terminal state for rendering.
     pub fn get_frame(&mut self) -> Frame {
         let count = self.frame_count;
+        let viewport_area = self.viewport_area;
+        let mut context = Context::from_buffer(self.current_buffer_mut());
         Frame {
             cursor_position: None,
-            viewport_area: self.viewport_area,
-            buffer: self.current_buffer_mut(),
+            viewport_area,
+            context: &mut context,
             count,
         }
     }

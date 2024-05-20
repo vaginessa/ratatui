@@ -3,7 +3,10 @@ use std::{borrow::Cow, fmt};
 
 use itertools::{Itertools, Position};
 
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    widgets::{Context, Render},
+};
 
 /// A string split over one or more lines.
 ///
@@ -593,16 +596,12 @@ impl fmt::Display for Text<'_> {
     }
 }
 
-impl Widget for Text<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        self.render_ref(area, buf);
-    }
-}
+impl Widget for Text<'_> {}
 
-impl WidgetRef for Text<'_> {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        let area = area.intersection(buf.area);
-        buf.set_style(area, self.style);
+impl Render for Text<'_> {
+    fn render(&self, area: Rect, ctx: &mut Context) {
+        let area = area.intersection(ctx.buffer.area);
+        ctx.buffer.set_style(area, self.style);
         for (line, row) in self.iter().zip(area.rows()) {
             let line_width = line.width() as u16;
 
@@ -619,7 +618,7 @@ impl WidgetRef for Text<'_> {
                 height: 1,
             };
 
-            line.render(line_area, buf);
+            Render::render(line, line_area, ctx);
         }
     }
 }

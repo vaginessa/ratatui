@@ -12,6 +12,7 @@ use std::iter;
 use strum::{Display, EnumString};
 use unicode_width::UnicodeWidthStr;
 
+use super::{Context, RenderWithState};
 use crate::{prelude::*, symbols::scrollbar::*};
 
 /// A widget to display a scrollbar
@@ -479,10 +480,12 @@ impl ScrollbarState {
     }
 }
 
-impl<'a> StatefulWidget for Scrollbar<'a> {
+impl<'a> StatefulWidget for Scrollbar<'a> {}
+
+impl<'a> RenderWithState for Scrollbar<'a> {
     type State = ScrollbarState;
 
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+    fn render_with_state(&self, area: Rect, ctx: &mut Context, state: &mut Self::State) {
         if state.content_length == 0 || self.track_length_excluding_arrow_heads(area) == 0 {
             return;
         }
@@ -492,7 +495,7 @@ impl<'a> StatefulWidget for Scrollbar<'a> {
         for x in area.left()..area.right() {
             for y in area.top()..area.bottom() {
                 if let Some(Some((symbol, style))) = bar.next() {
-                    buf.set_string(x, y, symbol, style);
+                    ctx.buffer.set_string(x, y, symbol, style);
                 }
             }
         }

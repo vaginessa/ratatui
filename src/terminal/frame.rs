@@ -1,4 +1,7 @@
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    widgets::{Context, Render, RenderWithState},
+};
 
 /// A consistent view into the terminal state for rendering a single frame.
 ///
@@ -22,7 +25,7 @@ pub struct Frame<'a> {
     pub(crate) viewport_area: Rect,
 
     /// The buffer that is used to draw the current frame
-    pub(crate) buffer: &'a mut Buffer,
+    pub(crate) context: &'a mut Context<'a>,
 
     /// The frame count indicating the sequence number of this frame.
     pub(crate) count: usize,
@@ -71,32 +74,25 @@ impl Frame<'_> {
     /// ```
     ///
     /// [`Layout`]: crate::layout::Layout
-    pub fn render_widget<W: Widget>(&mut self, widget: W, area: Rect) {
-        widget.render(area, self.buffer);
+    pub fn render_widget<W: Widget + Render>(&mut self, widget: W, area: Rect) {
+        widget.render(area, self.context.buffer);
     }
 
-    /// Render a [`WidgetRef`] to the current buffer using [`WidgetRef::render_ref`].
-    ///
-    /// Usually the area argument is the size of the current frame or a sub-area of the current
-    /// frame (which can be obtained using [`Layout`] to split the total area).
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # #[cfg(feature = "unstable-widget-ref")] {
-    /// # use ratatui::{backend::TestBackend, prelude::*, widgets::Block};
-    /// # let backend = TestBackend::new(5, 5);
-    /// # let mut terminal = Terminal::new(backend).unwrap();
-    /// # let mut frame = terminal.get_frame();
-    /// let block = Block::new();
-    /// let area = Rect::new(0, 0, 5, 5);
-    /// frame.render_widget_ref(block, area);
-    /// # }
-    /// ```
+    /// Render a [`Render`] to the current buffer using [`Render::render`].
     #[allow(clippy::needless_pass_by_value)]
-    #[stability::unstable(feature = "widget-ref")]
-    pub fn render_widget_ref<W: WidgetRef>(&mut self, widget: W, area: Rect) {
-        widget.render_ref(area, self.buffer);
+    pub fn render<R: Render>(&mut self, renderable: R, area: Rect) {
+        renderable.render(area, self.context);
+    }
+
+    /// Render a [`RenderWithState`] to the current buffer using
+    /// [`RenderWithState::render_with_state`].
+    pub fn render_with_state<R: RenderWithState>(
+        &mut self,
+        renderable: R,
+        area: Rect,
+        state: &mut R::State,
+    ) {
+        renderable.render_with_state(area, self.context, state);
     }
 
     /// Render a [`StatefulWidget`] to the current buffer using [`StatefulWidget::render`].
@@ -125,39 +121,7 @@ impl Frame<'_> {
     where
         W: StatefulWidget,
     {
-        widget.render(area, self.buffer, state);
-    }
-
-    /// Render a [`StatefulWidgetRef`] to the current buffer using
-    /// [`StatefulWidgetRef::render_ref`].
-    ///
-    /// Usually the area argument is the size of the current frame or a sub-area of the current
-    /// frame (which can be obtained using [`Layout`] to split the total area).
-    ///
-    /// The last argument should be an instance of the [`StatefulWidgetRef::State`] associated to
-    /// the given [`StatefulWidgetRef`].
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # #[cfg(feature = "unstable-widget-ref")] {
-    /// # use ratatui::{backend::TestBackend, prelude::*, widgets::*};
-    /// # let backend = TestBackend::new(5, 5);
-    /// # let mut terminal = Terminal::new(backend).unwrap();
-    /// # let mut frame = terminal.get_frame();
-    /// let mut state = ListState::default().with_selected(Some(1));
-    /// let list = List::new(vec![ListItem::new("Item 1"), ListItem::new("Item 2")]);
-    /// let area = Rect::new(0, 0, 5, 5);
-    /// frame.render_stateful_widget_ref(list, area, &mut state);
-    /// # }
-    /// ```
-    #[allow(clippy::needless_pass_by_value)]
-    #[stability::unstable(feature = "widget-ref")]
-    pub fn render_stateful_widget_ref<W>(&mut self, widget: W, area: Rect, state: &mut W::State)
-    where
-        W: StatefulWidgetRef,
-    {
-        widget.render_ref(area, self.buffer, state);
+        widget.render(area, self.context.buffer, state);
     }
 
     /// After drawing this frame, make the cursor visible and put it at the specified (x, y)
@@ -172,7 +136,7 @@ impl Frame<'_> {
 
     /// Gets the buffer that this `Frame` draws into as a mutable reference.
     pub fn buffer_mut(&mut self) -> &mut Buffer {
-        self.buffer
+        self.context.buffer
     }
 
     /// Returns the current frame count.
