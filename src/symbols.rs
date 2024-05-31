@@ -470,6 +470,28 @@ pub mod border {
         horizontal_top: QUADRANT_TOP_HALF,
         horizontal_bottom: QUADRANT_BOTTOM_HALF,
     };
+
+    pub const SOLID: Set = Set {
+        top_left: QUADRANT_BLOCK,
+        top_right: QUADRANT_BLOCK,
+        bottom_left: QUADRANT_BLOCK,
+        bottom_right: QUADRANT_BLOCK,
+        vertical_left: QUADRANT_BLOCK,
+        vertical_right: QUADRANT_BLOCK,
+        horizontal_top: QUADRANT_BLOCK,
+        horizontal_bottom: QUADRANT_BLOCK,
+    };
+
+    pub const EMPTY: Set = Set {
+        top_left: " ",
+        top_right: " ",
+        bottom_left: " ",
+        bottom_right: " ",
+        vertical_left: " ",
+        vertical_right: " ",
+        horizontal_top: " ",
+        horizontal_bottom: " ",
+    };
 }
 
 pub const DOT: &str = "•";
